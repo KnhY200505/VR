@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>A-Frame 音频选择播放 + 摄像头背景</title>
+    <title>Blendshape + 音频控制 + 摄像头背景</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <style>
       body { margin: 0; overflow: hidden; }
@@ -32,24 +32,23 @@
 
     <!-- A-Frame 场景 -->
     <a-scene>
-      <!-- 摄像头画面 -->
+      <!-- 摄像头背景 -->
       <a-video 
         src="#cam" 
         position="0 1.5 -4" 
         width="8" 
         height="4.5"
-        rotation="0 0 0"
       ></a-video>
 
       <!-- 摄像头位置 -->
       <a-entity id="camera" camera look-controls position="0 1.6 0"></a-entity>
 
-      <!-- 动态立方体 -->
-      <a-box id="audio-box" position="0 1 -2" rotation="0 45 0" color="#4CC3D9"></a-box>
+      <!-- 加载 glb 模型（包含 blendshape） -->
+      <a-entity id="blendshape-model" gltf-model="Cube_Blendshape_test.glb" position="0 1 -2" scale="1 1 1"></a-entity>
     </a-scene>
 
     <script>
-      // 摄像头启动
+      // 摄像头背景
       const video = document.getElementById('cam');
       navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
         video.srcObject = stream;
@@ -58,10 +57,21 @@
       });
 
       let audioContext, audioSource, analyser, dataArray, currentAudio;
-      const boxEl = document.querySelector('#audio-box');
+      let modelMesh; // 将来指向包含 morphTargetInfluences 的网格
+
+      const modelEntity = document.querySelector('#blendshape-model');
+
+      // 当模型加载完成后，获取其 mesh 对象
+      modelEntity.addEventListener('model-loaded', () => {
+        const mesh = modelEntity.getObject3D('mesh');
+        mesh.traverse(node => {
+          if (node.isMesh && node.morphTargetInfluences) {
+            modelMesh = node;
+          }
+        });
+      });
 
       function playAudio(filename) {
-        // 如果有旧音频，停止
         if (currentAudio) {
           currentAudio.pause();
           currentAudio = null;
@@ -70,7 +80,6 @@
           audioContext.close();
         }
 
-        // 创建新的音频
         currentAudio = new Audio(filename);
         currentAudio.loop = true;
         currentAudio.autoplay = true;
@@ -85,6 +94,7 @@
         analyser.connect(audioContext.destination);
 
         currentAudio.play();
+        audioContext.resume();
         animate();
       }
 
@@ -95,8 +105,11 @@
         analyser.getByteFrequencyData(dataArray);
         const avgFreq = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
 
-        const scale = 1 + avgFreq / 100;
-        boxEl.setAttribute('scale', `${scale} ${scale} ${scale}`);
+        const influence = Math.min(avgFreq / 100, 1); // 限制在 0~1 之间
+
+        if (modelMesh && modelMesh.morphTargetInfluences) {
+          modelMesh.morphTargetInfluences[0] = influence; // 控制第一个 blendshape
+        }
       }
     </script>
   </body>
