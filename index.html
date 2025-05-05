@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>A-Frame 音频选择播放 + 摄像头背景</title>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <style>
+      body { margin: 0; overflow: hidden; }
+      .btn-container {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 2;
+      }
+      button {
+        margin: 4px;
+        padding: 6px 12px;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 音频选择按钮 -->
+    <div class="btn-container">
+      <button onclick="playAudio('AnotherDayOfSun.MP3')">Audio 1</button>
+      <button onclick="playAudio('AnotherDayOfSun2.MP3')">Audio 2</button>
+      <button onclick="playAudio('AnotherDayOfSun3.MP3')">Audio 3</button>
+    </div>
+
+    <!-- 摄像头视频元素 -->
+    <video id="cam" autoplay muted playsinline style="display: none;"></video>
+
+    <!-- A-Frame 场景 -->
+    <a-scene>
+      <!-- 摄像头画面 -->
+      <a-video 
+        src="#cam" 
+        position="0 1.5 -4" 
+        width="8" 
+        height="4.5"
+        rotation="0 0 0"
+      ></a-video>
+
+      <!-- 摄像头位置 -->
+      <a-entity id="camera" camera look-controls position="0 1.6 0"></a-entity>
+
+      <!-- 动态立方体 -->
+      <a-box id="audio-box" position="0 1 -2" rotation="0 45 0" color="#4CC3D9"></a-box>
+    </a-scene>
+
+    <script>
+      // 摄像头启动
+      const video = document.getElementById('cam');
+      navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+        video.srcObject = stream;
+      }).catch(err => {
+        alert('摄像头启动失败: ' + err);
+      });
+
+      let audioContext, audioSource, analyser, dataArray, currentAudio;
+      const boxEl = document.querySelector('#audio-box');
+
+      function playAudio(filename) {
+        // 如果有旧音频，停止
+        if (currentAudio) {
+          currentAudio.pause();
+          currentAudio = null;
+        }
+        if (audioContext) {
+          audioContext.close();
+        }
+
+        // 创建新的音频
+        currentAudio = new Audio(filename);
+        currentAudio.loop = true;
+        currentAudio.autoplay = true;
+
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        audioSource = audioContext.createMediaElementSource(currentAudio);
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 64;
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+        audioSource.connect(analyser);
+        analyser.connect(audioContext.destination);
+
+        currentAudio.play();
+        animate();
+      }
+
+      function animate() {
+        if (!analyser) return;
+        requestAnimationFrame(animate);
+
+        analyser.getByteFrequencyData(dataArray);
+        const avgFreq = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+
+        const scale = 1 + avgFreq / 100;
+        boxEl.setAttribute('scale', `${scale} ${scale} ${scale}`);
+        boxEl.object3D.rotation.y += 0.01;
+      }
+    </script>
+  </body>
+</html>
