@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>A-Frame</title>
+    <title>A-Frame 音频选择播放 + 摄像头背景</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <style>
       body { margin: 0; overflow: hidden; }
@@ -97,7 +97,6 @@
 
         const scale = 1 + avgFreq / 100;
         boxEl.setAttribute('scale', `${scale} ${scale} ${scale}`);
-        boxEl.object3D.rotation.y += 0.01;
       }
     </script>
   </body>
